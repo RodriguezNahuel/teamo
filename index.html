@@ -1,0 +1,237 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Una rosa para vos</title>
+<meta name="theme-color" content="#000000">
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌹</text></svg>">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Cormorant+Garamond:ital,wght@0,500;1,500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #000;
+    --dim: #78787f;
+    --text: #c8c8d2;
+    --red: #ff4659;
+    --paper: #faf1e4;
+    --ink: #46202a;
+    --mono: "Cascadia Mono", "Cascadia Code", Consolas, "SF Mono", Menlo, "DejaVu Sans Mono", monospace;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; height: 100%; background: var(--bg); overflow: hidden; }
+  body { color: var(--text); font-family: var(--mono); -webkit-tap-highlight-color: transparent; }
+
+  canvas { position: fixed; inset: 0; width: 100vw; height: 100dvh; display: block; }
+  #glow { filter: blur(7px) saturate(1.5); opacity: .85; mix-blend-mode: screen; pointer-events: none; }
+
+  .hud { position: fixed; font-size: 12px; line-height: 1.45; color: var(--dim); pointer-events: none; white-space: pre; }
+  #hud-t { top: max(8px, env(safe-area-inset-top)); right: 14px; }
+  #hud-t b { color: var(--red); font-weight: normal; }
+  #hud-info { left: 14px; bottom: calc(30px + env(safe-area-inset-bottom)); }
+  #bar { position: fixed; left: 0; right: 0; bottom: 0; padding: 6px 12px calc(6px + env(safe-area-inset-bottom));
+         display: flex; justify-content: space-between; font-size: 12px; color: var(--dim);
+         border-top: 1px solid #1c1c22; background: #000; }
+  #bar span:first-child { color: var(--text); }
+
+  /* pantalla de carga */
+  #boot { position: fixed; inset: 0; display: flex; align-items: center; justify-content: center; z-index: 5;
+          background: #000; transition: opacity .8s ease; }
+  #boot pre { margin: 0; font-size: 13px; color: var(--text); min-width: 240px; }
+  #boot .cur { display: inline-block; width: .6em; height: 1.1em; background: var(--red); vertical-align: -0.2em;
+               animation: blink 1s steps(1) infinite; }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* sobre */
+  #env { position: fixed; right: 14px; bottom: calc(40px + env(safe-area-inset-bottom)); z-index: 3;
+         background: none; border: 0; padding: 8px; cursor: pointer; font-family: var(--mono);
+         color: #fae1cd; opacity: 0; transform: translateY(10px); pointer-events: none;
+         transition: opacity 1.2s ease, transform 1.2s ease; }
+  #env.show { opacity: 1; transform: none; pointer-events: auto; animation: float 3s ease-in-out 1.2s infinite; }
+  #env pre { margin: 0; font-size: 13px; line-height: 1.15; text-shadow: 0 0 8px rgba(255, 190, 170, .55); }
+  #env pre i { font-style: normal; color: var(--red); text-shadow: 0 0 10px var(--red); }
+  #env small { display: block; margin-top: 4px; font-size: 11px; color: #ff8a9c; text-align: center;
+               letter-spacing: .04em; animation: pulse 2s ease-in-out infinite; }
+  #env:hover pre, #env:focus-visible pre { color: #fff; }
+  #env:focus-visible { outline: 1px dashed #ff8a9c; outline-offset: 2px; }
+  @keyframes float { 50% { transform: translateY(-5px); } }
+  @keyframes pulse { 50% { opacity: .45; } }
+
+  /* carta */
+  #letter { position: fixed; inset: 0; z-index: 10; display: grid; place-items: center; padding: 18px;
+            background: rgba(0, 0, 0, .55); backdrop-filter: blur(3px); -webkit-backdrop-filter: blur(3px);
+            opacity: 0; pointer-events: none; transition: opacity .45s ease; }
+  #letter.open { opacity: 1; pointer-events: auto; }
+  .paper { position: relative; width: min(560px, 100%); max-height: min(82dvh, 760px); overflow: auto;
+           padding: 38px 34px 30px; border-radius: 6px; color: var(--ink);
+           background:
+             repeating-linear-gradient(to bottom, transparent 0 33px, rgba(180, 120, 120, .18) 33px 34px) 0 92px / 100% calc(100% - 120px) no-repeat,
+             radial-gradient(120% 90% at 50% 0%, #fffaf2 0%, var(--paper) 60%, #f1e2cc 100%);
+           box-shadow: 0 0 0 1px rgba(255, 255, 255, .08), 0 30px 80px rgba(255, 40, 70, .18), 0 10px 30px rgba(0, 0, 0, .6);
+           transform: perspective(900px) rotateX(18deg) translateY(40px) scale(.92); transform-origin: 50% 100%;
+           transition: transform .7s cubic-bezier(.2, .9, .25, 1.05); }
+  #letter.open .paper { transform: none; }
+  .paper::before { content: "♥"; position: absolute; top: 12px; left: 50%; transform: translateX(-50%);
+                   color: #d83a55; font-size: 16px; }
+  .paper .to { font-family: "Caveat", cursive; font-size: 30px; margin: 4px 0 10px; min-height: 1em; }
+  .paper .body { font-family: "Cormorant Garamond", Georgia, serif; font-size: 21px; line-height: 34px;
+                 white-space: pre-wrap; min-height: 272px; margin: 0; }
+  .paper .from { font-family: "Caveat", cursive; font-size: 28px; text-align: right; margin: 18px 0 0; min-height: 1em; }
+  .close { position: absolute; top: 8px; right: 10px; width: 34px; height: 34px; border: 0; border-radius: 50%;
+           background: transparent; color: #9a6a72; font-size: 22px; cursor: pointer; }
+  .close:hover { background: rgba(200, 80, 100, .1); color: var(--ink); }
+  .hint { position: fixed; bottom: calc(14px + env(safe-area-inset-bottom)); left: 0; right: 0; text-align: center;
+          font-size: 11px; color: #8a8a94; pointer-events: none; }
+
+  #err { position: fixed; inset: auto 12px 50px; color: #ff8a9c; font-size: 12px; white-space: pre-wrap; z-index: 6; }
+
+  @media (prefers-reduced-motion: reduce) {
+    #env.show, #env small { animation: none; }
+    .paper { transition: none; }
+  }
+</style>
+</head>
+<body>
+<canvas id="main" aria-label="Una rosa hecha de letras que crece y florece"></canvas>
+<canvas id="glow" aria-hidden="true"></canvas>
+
+<div class="hud" id="hud-t"><b>●</b> t   0.00s</div>
+<div class="hud" id="hud-info"></div>
+<div id="bar"><span>$ py teamo.py</span><span id="fps">starting…</span></div>
+
+<button id="env" aria-label="Abrir la carta">
+<pre> _________
+|\       /|
+| \  <i>♥</i>  / |
+|  `---'  |
+|_________|</pre><small>tocá la carta</small>
+</button>
+
+<div id="letter" role="dialog" aria-modal="true" aria-label="Carta">
+  <article class="paper">
+    <button class="close" aria-label="Cerrar">×</button>
+    <p class="to" id="l-to"></p>
+    <p class="body" id="l-body"></p>
+    <p class="from" id="l-from"></p>
+  </article>
+  <div class="hint">tocá afuera para cerrar</div>
+</div>
+
+<div id="boot"><pre id="boot-log"></pre></div>
+<div id="err"></div>
+
+<script src="https://cdn.jsdelivr.net/pyodide/v0.29.5/full/pyodide.js"></script>
+<script>
+(async () => {
+  const $ = (id) => document.getElementById(id);
+  const log = $("boot-log");
+  const lines = [];
+  const say = (s) => { lines.push(s); log.innerHTML = lines.join("\n") + ' <span class="cur"></span>'; };
+
+  say("$ py teamo.py");
+  let py, rosa, webFrame;
+  try {
+    say("  cargando python…");
+    py = await loadPyodide();
+    say("  cargando numpy…");
+    await py.loadPackage("numpy");
+    const src = await (await fetch("teamo.py", { cache: "no-cache" })).text();
+    py.FS.writeFile("/home/pyodide/teamo.py", src);
+    rosa = py.pyimport("teamo");
+    webFrame = rosa.web_frame;
+    say("  listo ♥");
+  } catch (e) {
+    $("err").textContent = "No se pudo cargar: " + e;
+    return;
+  }
+
+  // carta (viene de las variables PARA / CARTA / DE de teamo.py)
+  $("l-to").textContent = String(rosa.PARA).trim();
+  $("l-body").textContent = String(rosa.CARTA).replace(/^\n+|\s+$/g, "");
+  $("l-from").textContent = String(rosa.DE).trim();
+  const firma = String(rosa.FIRMA_HUD);
+  const T_LETTER = Number(rosa.T_LETTER);
+
+  const main = $("main"), glow = $("glow");
+  const ctx = main.getContext("2d", { alpha: false });
+  const gctx = glow.getContext("2d");
+  const FONT = getComputedStyle(document.body).getPropertyValue("--mono");
+  let C, R, cw, lh, fs, dpr, aspect, bottomRows;
+
+  function layout() {
+    dpr = Math.min(window.devicePixelRatio || 1, 2);
+    const W = window.innerWidth, H = window.innerHeight;
+    fs = Math.max(6.5, Math.min(13, H / 84, W / 52));
+    lh = fs * 1.18;
+    ctx.font = `${fs}px ${FONT}`;
+    cw = ctx.measureText("M").width;
+    C = Math.floor(W / cw);
+    R = Math.floor(H / lh);
+    aspect = lh / cw;
+    bottomRows = Math.ceil(80 / lh);
+    for (const c of [main, glow]) { c.width = Math.round(W * dpr); c.height = Math.round(H * dpr); }
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+    ctx.font = `${fs}px ${FONT}`;
+    ctx.textBaseline = "top";
+  }
+  layout();
+  addEventListener("resize", layout);
+
+  const boot = $("boot");
+  boot.style.opacity = 0;
+  setTimeout(() => boot.remove(), 900);
+
+  const t0 = performance.now();
+  let last = 0, fps = 30, envShown = false;
+  const hudT = $("hud-t"), hudInfo = $("hud-info"), fpsEl = $("fps"), env = $("env");
+
+  function frame(now) {
+    requestAnimationFrame(frame);
+    if (now - last < 1000 / 31) return;
+    const dt = now - last; last = now;
+    fps = fps * 0.9 + 0.1 * (1000 / Math.max(dt, 1));
+    const t = (now - t0) / 1000;
+
+    const res = webFrame(t, C, R, aspect, 1, bottomRows);
+    const out = res.toJs();
+    res.destroy();
+    const [chars, rgbRaw, bloom, sway, letters] = out;
+    const rgb = rgbRaw instanceof Uint8Array ? rgbRaw : new Uint8Array(rgbRaw);
+
+    ctx.fillStyle = "#000";
+    ctx.fillRect(0, 0, main.width, main.height);
+    let k = 0;
+    for (let r = 0; r < R; r++) {
+      const y = r * lh;
+      for (let c = 0; c < C; c++, k++) {
+        const ch = chars[k];
+        if (ch === " ") continue;
+        const j = k * 3;
+        ctx.fillStyle = `rgb(${rgb[j]},${rgb[j + 1]},${rgb[j + 2]})`;
+        ctx.fillText(ch, c * cw, y);
+      }
+    }
+    gctx.clearRect(0, 0, glow.width, glow.height);
+    gctx.drawImage(main, 0, 0);
+
+    hudT.innerHTML = `<b>●</b> t ${t.toFixed(2).padStart(6, " ")}s`;
+    hudInfo.textContent =
+      `${firma}\nbloom ${(bloom * 100).toFixed(1).padStart(5, " ")}%   sway ${sway.toFixed(2)}°\nletters ${letters.toLocaleString("en-US")}`;
+    fpsEl.textContent = `running · ${Math.round(Math.min(fps, 30))} fps`;
+    if (!envShown && t > T_LETTER) { envShown = true; env.classList.add("show"); }
+  }
+  requestAnimationFrame(frame);
+
+  // abrir / cerrar la carta
+  const letter = $("letter");
+  const open = () => { letter.classList.add("open"); letter.querySelector(".close").focus({ preventScroll: true }); };
+  const close = () => { letter.classList.remove("open"); env.focus({ preventScroll: true }); };
+  env.addEventListener("click", open);
+  letter.addEventListener("click", (e) => { if (e.target === letter) close(); });
+  letter.querySelector(".close").addEventListener("click", close);
+  addEventListener("keydown", (e) => { if (e.key === "Escape" && letter.classList.contains("open")) close(); });
+})();
+</script>
+</body>
+</html>
