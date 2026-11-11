@@ -18,11 +18,18 @@ Python con Pyodide, asi que lo que escribas abajo aparece en los dos lados.
 """
 
 # ╔═════════════════════════════ TU CARTA ═════════════════════════════╗
-PARA = ""          # a quien va dirigida, ej: "Para vos"
+PARA = "Querida morenita:"
 CARTA = """
-"""                # el texto completo de la carta (podes usar varios parrafos)
-DE = ""            # la firma, ej: "Con amor, Nahuel"
-FIRMA_HUD = "una rosa para vos · 2026"     # texto chiquito abajo a la izquierda
+Gracias por estos 4 hermosos años juntos. Gracias por cada risa, cada abrazo y cada día compartido; por estar en los momentos lindos y también en los difíciles, siempre a mi lado.
+
+Me hacés feliz todos los días de mi vida. No hay nada que desee más que seguir sumando años con vos, y espero que sean muchos, muchísimos más.
+
+Esta rosa nunca se marchita, como lo que siento por vos.
+
+Te amo con toda mi vida.
+"""
+DE = "Tuyo, siempre ♥"
+FIRMA_HUD = "para mi morenita · 4 años"     # texto chiquito abajo a la izquierda
 # ╚════════════════════════════════════════════════════════════════════╝
 
 import math
@@ -133,7 +140,6 @@ def rot_x(P, a):
 def head_points(o, s_in, t, q):
     nt, nx = int(560 * q), int(18 * q)
     TH, XX, THN, XU, pv, tex, ao = rose_grid(nt, nx)
-    o = o + 0.012 * math.sin(t * 1.3) * o            # respira un poquito
     m = 0.30 + 0.70 * o
     phi = (np.pi / 2) * np.exp(-TH / (8 * np.pi)) * m
     yb = 1.95653 * XX ** 2 * (1.27689 * XX - 1) ** 2 * np.sin(phi)
@@ -232,7 +238,21 @@ def sepal_points(o, s_in, q):
                 kind=np.ones(len(P), int))
 
 
+T_DONE = T_BLOOM[0] + T_BLOOM[1] + 0.05       # a partir de aca la geometria ya no cambia
+_PLANT_CACHE = {}
+
+
 def plant(t, q):
+    """puntos de toda la planta en coordenadas del mundo (se cachea cuando termina de florecer)"""
+    if t >= T_DONE:
+        if q not in _PLANT_CACHE:
+            _PLANT_CACHE.clear()
+            _PLANT_CACHE[q] = _plant(T_DONE, q)
+        return _PLANT_CACHE[q]
+    return _plant(t, q)
+
+
+def _plant(t, q):
     g = grow(t)
     parts = []
     if g > 0:
@@ -330,11 +350,11 @@ def dust_points(t, head_center):
 
 
 # ─────────────────────────── render ───────────────────────────
-def render(t, cols, rows, aspect=2.0, top=1, bottom=4):
+def render(t, cols, rows, aspect=2.0, top=1, bottom=4, quality=1.0):
     """devuelve (chars[R,C], color[R,C,3] uint8, stats)"""
     C, R = cols, rows
     view = View(C, R, aspect, top, bottom)
-    q = float(np.clip(view.sc / 55.0, 0.8, 2.4))
+    q = round(float(np.clip(view.sc / 55.0 * quality, 0.5, 2.4)), 1)
     yaw = sway(t)
     chars = np.full((R, C), " ", dtype="<U1")
     rgb = np.zeros((R, C, 3), float)
@@ -362,7 +382,9 @@ def render(t, cols, rows, aspect=2.0, top=1, bottom=4):
         ok = (ci >= 0) & (ci < C) & (ri >= 0) & (ri < R)
         idx = (ri * C + ci)[ok]
         depth = Pc[ok, 2]
-        order = np.lexsort((-depth, idx))
+        # z-buffer: ordenar por celda y, dentro de cada celda, el punto mas cercano primero
+        dq = np.clip(((depth + 4.0) * 500.0).astype(np.int64), 0, 4095)
+        order = np.argsort(idx.astype(np.int64) * 4096 + (4095 - dq))
         idx_s = idx[order]
         first = np.ones(len(idx_s), bool)
         first[1:] = idx_s[1:] != idx_s[:-1]
@@ -465,9 +487,9 @@ def render(t, cols, rows, aspect=2.0, top=1, bottom=4):
     return chars, np.clip(rgb, 0, 255).astype(np.uint8), stats
 
 
-def web_frame(t, cols, rows, aspect, top, bottom):
-    """usado por index.html (Pyodide)"""
-    chars, rgb, st = render(t, cols, rows, aspect, top, bottom)
+def web_frame(t, cols, rows, aspect, top, bottom, quality=1.0):
+    """usado por worker.js (Pyodide, en el navegador)"""
+    chars, rgb, st = render(t, cols, rows, aspect, top, bottom, quality)
     return "".join(chars.ravel().tolist()), rgb.tobytes(), st["bloom"], st["sway"], st["letters"]
 
 
