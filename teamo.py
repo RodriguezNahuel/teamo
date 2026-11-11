@@ -28,7 +28,7 @@ Esta rosa nunca se marchita, como lo que siento por vos.
 
 Te amo con toda mi vida.
 """
-DE = "Tuyo, siempre ♥"
+DE = ""
 FIRMA_HUD = "para mi morenita · 4 años"     # texto chiquito abajo a la izquierda
 # ╚════════════════════════════════════════════════════════════════════╝
 
